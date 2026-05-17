@@ -1,0 +1,16 @@
+matplotlib not available; skipping PDF figure and using benchmark.csv/table output.
+N_envs,T,mean_ms,std_ms,bandwidth_GBps
+1024,16,0.004591,0.000066,72.260
+4096,16,0.009374,0.000096,141.570
+16384,16,0.027955,0.000124,189.890
+65536,16,0.108553,0.000091,195.606
+1024,32,0.006039,0.000085,109.192
+4096,32,0.014874,0.000148,177.347
+16384,32,0.051455,0.000153,205.060
+65536,32,0.197055,0.000193,214.179
+CPU reference at (16384,32): 15.370 ms
+GPU kernel at (16384,32): 0.051455 ms
+Speedup: 298.7x
+Reported theoretical peak memory bandwidth: 672 GB/s
+Achieved bandwidth at (16384,32): 205.060 GB/s (30.51% of peak)
+Wrote /home/cme213/karenvo/distributed-ppo-engine/report/benchmark.csv

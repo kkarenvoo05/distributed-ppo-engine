@@ -21,6 +21,7 @@ add_library(ppo_kernels SHARED
 
 target_include_directories(ppo_kernels PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
 )
 
 target_compile_options(ppo_kernels PRIVATE
@@ -46,4 +47,3 @@ add_executable(bench_gae benchmarks/bench_gae.cu)
 target_link_libraries(bench_gae PRIVATE ppo_kernels)
 target_include_directories(bench_gae PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_compile_options(bench_gae PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-O3 --use_fast_math -lineinfo>)
-

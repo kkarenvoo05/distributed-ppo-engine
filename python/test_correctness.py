@@ -21,7 +21,13 @@ def require_binary():
 
 
 def run_cmd(args):
-    proc = subprocess.run(args, check=True, text=True, capture_output=True)
+    proc = subprocess.run(
+        args,
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        universal_newlines=True,
+    )
     return json.loads(proc.stdout.strip())
 
 
@@ -56,10 +62,14 @@ def run_gae_case(N, T, gamma=0.99, lam=0.95, seed=0, custom=None):
     got_ret = raw[adv_count:].reshape(N, T)
     adv_abs, adv_rel = max_errors(got_adv, ref_adv)
     ret_abs, ret_rel = max_errors(got_ret, ref_ret)
+    passed = np.allclose(got_adv, ref_adv, atol=1e-5, rtol=1e-4) and np.allclose(
+        got_ret, ref_ret, atol=1e-5, rtol=1e-4
+    )
     return {
         "shape": (N, T),
         "max_abs": max(adv_abs, ret_abs),
         "max_rel": max(adv_rel, ret_rel),
+        "passed": passed,
         "cpu_ms": cpu_ms,
         "gpu_ms": info["gpu_ms"],
     }
@@ -113,8 +123,7 @@ def main():
     rows.append(run_gae_case(N, T, gamma=0.99, lam=1.0, seed=9))
 
     for row in rows:
-        assert row["max_abs"] < 1e-5, row
-        assert row["max_rel"] < 1e-4, row
+        assert row["passed"], row
 
     run_normalize_case(1 << 20)
     run_normalize_case(4096, constant=True)
@@ -138,4 +147,3 @@ if __name__ == "__main__":
         sys.stderr.write(exc.stdout)
         sys.stderr.write(exc.stderr)
         raise
-
