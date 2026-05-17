@@ -1,0 +1,17 @@
+build/
+*.o
+*.so
+*.dylib
+*.dll
+*.a
+__pycache__/
+.venv/
+*.pyc
+.pytest_cache/
+report/*.aux
+report/*.log
+report/*.out
+report/*.toc
+report/*.pdf
+!report/milestone3.pdf
+

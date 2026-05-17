@@ -1,0 +1,63 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage{times}
+
+\setlength{\parskip}{0.35em}
+\setlength{\parindent}{0pt}
+
+\begin{document}
+
+\begin{center}
+{\Large \textbf{CME 213 Milestone 3: Distributed PPO Engine CUDA Kernels}}\\
+Karen Vo \hfill Spring 2026
+\end{center}
+
+\textbf{Summary of progress.}
+This milestone implements the single-GPU CUDA preprocessing kernels for a PPO rollout buffer: fused TD-residual plus GAE backward scan, advantage normalization, and a basic minibatch gather. Kernel 1 is complete and benchmarked with synthetic rollout buffers; Kernel 2 uses a hand-written CUDA reduction; Kernel 3 is a correctness-oriented gather stub, with GPU-side shuffle deferred to Milestone 4. I intentionally deferred IsaacLab/RSL\_RL integration to Milestone 4 so this milestone isolates kernel correctness and memory-system performance without simulator or framework overhead.
+
+\textbf{CUDA kernels.}
+The GAE kernel computes
+\[
+\delta_t = r_t + \gamma V_{t+1}(1-d_t) - V_t,\qquad
+\hat A_t = \delta_t + \gamma\lambda(1-d_t)\hat A_{t+1},
+\]
+and writes returns $R_t=\hat A_t+V_t$. The implementation launches one block per environment, with $T$ threads per block for the $T \in \{16,32\}$ rollout horizon. Rewards, values, and done masks are staged in shared memory, then thread 0 performs the backward recurrence. Although this leaves most threads idle during the scan, the recurrence is only 16--32 steps and the simpler serial scan avoids the synchronization and instruction overhead of a parallel scan.
+
+The normalization kernel flattens advantages and computes sum and sum-of-squares using a grid-stride loop, warp shuffle reductions, and one atomic add per block. A second kernel computes $\mu$, $\sigma$, and normalizes each element in place. The gather kernel maps one thread to each output element, so writes to the minibatch output are coalesced across the feature dimension.
+
+\textbf{C++ wrapper and CPU code.}
+The C++ wrapper allocates device buffers, copies host inputs to the GPU, launches kernels, records CUDA event timings, and copies outputs back. The \texttt{gae\_test} CLI accepts synthetic inputs or binary buffers from Python, making correctness tests reproducible without pybind11. The CPU reference uses NumPy with fp64 accumulation for the GAE recurrence and casts to fp32 at the end.
+
+\textbf{Correctness testing.}
+Correctness was tested against the fp64 NumPy oracle over standard rollout shapes and edge cases including all-zero rewards, all terminal masks, no terminal masks, $\gamma=0$, $\lambda=0$, and $\lambda=1$. Fill in the table below after running \texttt{python python/test\_correctness.py} on the GPU node.
+
+\begin{center}
+\begin{tabular}{rrrrr}
+\toprule
+$N_{\mathrm{envs}}$ & $T$ & Max abs err & Max rel err & GPU ms \\
+\midrule
+1024 & 16 & TBD & TBD & TBD \\
+1024 & 32 & TBD & TBD & TBD \\
+4096 & 32 & TBD & TBD & TBD \\
+16384 & 32 & TBD & TBD & TBD \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Preliminary performance analysis.}
+Kernel 1 should be memory-bound: per environment it reads approximately $(3T+1)$ floats and writes $2T$ floats, for about $N_{\mathrm{envs}}(5T+1)4$ bytes. The benchmark script records CUDA-event kernel time after warmup, reports achieved bandwidth, and saves the bandwidth plot to \texttt{report/figures/bench\_gae.pdf}. Insert the generated figure and measured bandwidth fraction after running the benchmark.
+
+\begin{center}
+\includegraphics[width=0.78\linewidth]{figures/bench_gae.pdf}
+\end{center}
+
+At $N_{\mathrm{envs}}=16384,T=32$, the CPU reference took TBD ms and the GPU kernel took TBD ms, for a speedup of TBD$\times$. Achieved bandwidth was TBD GB/s, or TBD\% of the reported theoretical peak.
+
+\textbf{Challenges and next steps.}
+The main tradeoff was choosing a serial in-block scan for GAE instead of a parallel prefix formulation; for the short rollout horizons used by PPO, this keeps the implementation small and avoids overhead that would likely dominate. Milestone 4 will add GPU-side permutation generation and fused gather, MPI all-reduce for advantage statistics, gradient all-reduce with bucketing, CUDA-aware MPI, RSL\_RL/IsaacLab integration, and scaling experiments on 2/4/8 GPUs.
+
+\end{document}
+
